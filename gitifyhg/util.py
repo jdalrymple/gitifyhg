@@ -18,6 +18,35 @@ TAG = 'tag'
 
 actual_stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)  # Ensure stdout is unbuffered
 
+# Stores name in cache with hg name as a key and git name as the value
+def get_converted_name(cache, name, is_git=False, git_only=False):
+    if git_only:
+        return cached_name_conversion(cache, name, is_git)
+    else:
+        return basic_name_conversion(name, is_git)
+
+def cached_name_conversion(cache, name, is_git):
+    # Used for one way conversions from hg to git
+
+    if is_git:
+        return list(cache)[cache.values().index(name)]
+    else:
+        if name not in cache:
+            cache[name] = cleaned_git_name(name)
+
+    return cache[name]
+
+def basic_name_conversion(name, is_git):
+    if is_git:
+        return git_to_hg_text(name)
+    else:
+        return hg_to_git_text(name)
+
+def hg_to_git_text(text):
+    return text.replace(' ', '___')
+
+def git_to_hg_text(text):
+    return text.replace('___', ' ')
 
 def deactivate_stdout():
     """Hijack stdout to prevent mercurial from inadvertently talking to git.
@@ -32,25 +61,21 @@ def deactivate_stdout():
             pass
     sys.stdout = DummyOut()
 
-
 def log(msg, level="DEBUG"):
     '''The git remote operates on stdin and stdout, so all debugging information
     has to go to stderr.'''
     if DEBUG_GITIFYHG or level != "DEBUG":
         sys.stderr.write(u'%s: %r\n' % (level, msg))
 
-
 def die(msg, *args):
     log(msg, 'ERROR', *args)
     sys.exit(1)
-
 
 def output(msg=''):
     if isinstance(msg, unicode):
         msg = msg.encode('utf-8')
     log("OUT: %s" % msg)
     print >> actual_stdout, msg
-
 
 def version():
     """Return version of gitifyhg"""
@@ -60,10 +85,8 @@ def version():
     except Exception:
         return "UNKNOWN"
 
-
 def gittz(tz):
     return '%+03d%02d' % (-tz / 3600, -tz % 3600 / 60)
-
 
 def gitmode(flags):
     if 'l' in flags:
@@ -73,50 +96,40 @@ def gitmode(flags):
     else:
         return '100644'
 
-
 def hgmode(mode):
     modes = {'100755': 'x', '120000': 'l'}
     return modes.get(mode, '')
 
+def cleaned_git_name(text):
+    # remove trailing forward slashes
+    cleanedText = re.sub("\/+$", '', text, flags=re.M)
 
-def hg_to_git_text(text, clean):
-    if not clean:
-        return text.replace(' ', '___')
-    else:
-        # remove trailing forward slashes
-        cleanedText = re.sub("\/+$", '', text, flags=re.M)
+    # remove back slashes
+    cleanedText = re.sub("\\\\", '', cleanedText, flags=re.M)
 
-        # remove back slashes
-        cleanedText = re.sub("\\\\", '', cleanedText, flags=re.M)
+    # remove single quotes
+    cleanedText = re.sub("'", '', cleanedText, flags=re.M)
 
-        # remove single quotes
-        cleanedText = re.sub("'", '', cleanedText, flags=re.M)
+    # remove control characters
+    cleanedText = re.sub("[:^~]", '', cleanedText, flags=re.M)
 
-        # remove control characters
-        cleanedText = re.sub("[:^~]", '', cleanedText, flags=re.M)
+    # remove multiple spaces
+    cleanedText = re.sub("\s+", ' ', cleanedText, flags=re.M)
 
-        # remove multiple spaces
-        cleanedText = re.sub("\s{2,}", ' ', cleanedText, flags=re.M)
+    # remove period from beginning of string
+    cleanedText = re.sub("^\.", '', cleanedText, flags=re.M)
 
-        # remove period from beginning of string
-        cleanedText = re.sub("^\.", '', cleanedText, flags=re.M)
+    # remove multiple periods
+    cleanedText = re.sub("\.{2,}", '', cleanedText, flags=re.M)
 
-        # remove multiple periods
-        cleanedText = re.sub("\.{2,}", '', cleanedText, flags=re.M)
+    # remove .lock from end of string
+    cleanedText = re.sub("\.lock+$", '', cleanedText, flags=re.M)
 
-        # remove .lock from end of string
-        cleanedText = re.sub("\.lock+$", '', cleanedText, flags=re.M)
+    # replacing spaces with hyphens
+    cleanedText = cleanedText.split(' ')
+    cleanedText = "-".join(cleanedText)
 
-        # replacing spaces with hyphens
-        cleanedText = cleanedText.split(' ')
-        cleanedText = "-".join(cleanedText)
-
-        return cleanedText;
-
-def git_to_hg_text(text):
-    '''But when we push back to mercurial, we need to convert it the other way.'''
-    return text.replace('___', ' ')
-
+    return cleanedText;
 
 def branch_tip(repo, branch):
     '''HG has a lovely branch_tip method, but it requires mercurial 2.4
@@ -126,7 +139,6 @@ def branch_tip(repo, branch):
         return repo.branchtip(branch)
     else:
         return repo.branchtags()[branch]
-
 
 def branch_head(hgremote, branch):
     try:
@@ -142,7 +154,6 @@ def branch_head(hgremote, branch):
         tip = heads[0]
 
     return hgremote.repo[tip]
-
 
 def ref_to_name_reftype(ref):
     '''Converts a git ref into a name (e.g., the name of that branch, tag, etc.)

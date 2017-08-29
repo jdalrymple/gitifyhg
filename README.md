@@ -245,8 +245,7 @@ environment variable. This is done automatically if you are running the test
 suite.
 
 The gitifyhg remote is called by git and commands are passed on stdin.
-Output is sent to stdout. The protocol is described at
-https://www.kernel.org/pub/software/scm/git/docs/git-remote-helpers.html
+Output is sent to [stdout](https://www.kernel.org/pub/software/scm/git/docs/git-remote-helpers.html)
 The git remote prints INPUT and OUTPUT lines for each of these to help
 introspect the protocol.
 

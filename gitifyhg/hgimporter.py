@@ -23,8 +23,8 @@ import re
 
 from mercurial import encoding
 
-from .util import (log, output, gittz, gitmode,
-    git_to_hg_text, branch_head, ref_to_name_reftype,
+from .util import (log, get_converted_name, output, gittz, gitmode,
+    branch_head, ref_to_name_reftype,
     BRANCH, BOOKMARK, TAG, relative_path)
 
 AUTHOR = re.compile(r'^([^<>]+)?(<(?:[^<>]*)>| [^ ]*@.*|[<>].*)$')
@@ -68,6 +68,7 @@ class HGImporter(object):
         self.notes_committed = 0
 
     def process(self):
+        log("process import", level="VERBOSE")
         output("feature done")
         if self.hgremote.marks_git_path.exists():
             output("feature import-marks=%s" % self.hgremote.marks_git_path)
@@ -88,14 +89,19 @@ class HGImporter(object):
                     self.hgremote.headnode[1])
             else:
                 name, reftype = ref_to_name_reftype(ref)
+                hg_name = get_converted_name(self.hgremote.names_cache, name, is_git = True, git_only=self.hgremote.git_only)
+
                 if reftype == BRANCH:
-                    head = branch_head(self.hgremote, git_to_hg_text(name))
+                    log(name, level="VERBOSE")
+
+                    head = branch_head(self.hgremote, hg_name)
                 elif reftype == BOOKMARK:
-                    head = self.hgremote.bookmarks[git_to_hg_text(name)]
+                    head = self.hgremote.bookmarks[hg_name]
                 elif reftype == TAG:
-                    head = self.repo[git_to_hg_text(name)]
+                    head = self.repo[hg_name]
                 else:
                     assert False, "unexpected reftype: %s" % reftype
+
                 self.process_ref(name, reftype, head)
 
             self.process_notes()

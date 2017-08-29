@@ -40,8 +40,8 @@ from mercurial.ui import ui
 from mercurial.error import Abort, RepoError
 from mercurial.util import version as hg_version
 
-from .util import (log, die, output, branch_head, GitMarks,
-    HGMarks, hg_to_git_text, name_reftype_to_ref, BRANCH, BOOKMARK, TAG,
+from .util import (log, get_converted_name, die, output, branch_head, GitMarks,
+    HGMarks, name_reftype_to_ref, BRANCH, BOOKMARK, TAG,
     version, deactivate_stdout)
 
 from apiwrapper import (hg_sha1, hg_readactive, hg_pull)
@@ -111,7 +111,7 @@ class GitRemoteParser(object):
             self.line = self.read_line()
 
 class HGRemote(object):
-    def __init__(self, alias, url, gitonly):
+    def __init__(self, alias, url, gitonly = False):
         if hg.islocal(url.encode('utf-8')):
             url = p(url).abspath()
             # Force git to use an absolute path in the future
@@ -141,6 +141,7 @@ class HGRemote(object):
         self.alias = alias
         self.url = url
         self.git_only = gitonly
+        self.names_cache = {} #For caching branch, tag, etc names properly for fluid conversion
         self.build_repo(url)
 
     def build_repo(self, url):
@@ -285,26 +286,31 @@ class HGRemote(object):
 
         # list the named branch references
         for branch in self.branches:
+            git_name = get_converted_name(self.names_cache, branch, git_only=self.git_only)
+
             output("%s %s" %
                     (self._change_hash(branch_head(self, branch)),
-                     name_reftype_to_ref(hg_to_git_text(branch, self.git_only), BRANCH)))
+                     name_reftype_to_ref(git_name, BRANCH)))
 
         # list the bookmark references
         for bookmark, changectx in self.bookmarks.items():
             if bookmark != "master":
+                git_name = get_converted_name(self.names_cache, bookmark, git_only=self.git_only)
+
                 output("%s %s" %
                         (self._change_hash(changectx),
-                         name_reftype_to_ref(hg_to_git_text(bookmark, self.git_only), BOOKMARK)))
+                         name_reftype_to_ref(git_name, BOOKMARK)))
 
         # list the tags
         for tag, node in self.repo.tagslist():
             if tag != "tip":
+                git_name = get_converted_name(self.names_cache, tag, git_only=self.git_only)
+
                 output("%s %s" %
                         (self._change_hash(self.repo[node]),
-                         name_reftype_to_ref(hg_to_git_text(tag, self.git_only), TAG)))
+                         name_reftype_to_ref(git_name, TAG)))
 
         output()
-
     def do_import(self, parser):
         HGImporter(self, parser).process()
 
@@ -340,7 +346,7 @@ def main():
     opts, args = parser.parse_args()
 
     if opts.version:
-        log_versions("VERSION")
+        log_versions("VERSION", level="VERBOSE")
         sys.exit(0)
     if opts.url:
         args.append(opts.url)
