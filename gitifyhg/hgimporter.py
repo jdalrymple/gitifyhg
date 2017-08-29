@@ -70,6 +70,7 @@ class HGImporter(object):
     def process(self):
         log("process import", level="VERBOSE")
         output("feature done")
+
         if self.hgremote.marks_git_path.exists():
             output("feature import-marks=%s" % self.hgremote.marks_git_path)
         output("feature export-marks=%s" % self.hgremote.marks_git_path)
@@ -79,6 +80,7 @@ class HGImporter(object):
         encoding.encoding = 'utf-8'
 
         self.commit_count = 0
+        
         while self.parser.line.startswith('import'):
             ref = self.parser.line.split()[1]
 

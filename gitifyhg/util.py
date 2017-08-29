@@ -101,33 +101,39 @@ def hgmode(mode):
     return modes.get(mode, '')
 
 def cleaned_git_name(text):
-    # remove trailing forward slashes
+    # Remove trailing forward slashes
     cleanedText = re.sub("\/+$", '', text, flags=re.M)
 
-    # remove back slashes
+    # Remove back slashes
     cleanedText = re.sub("\\\\", '', cleanedText, flags=re.M)
 
-    # remove single quotes
+    # Remove single quotes
     cleanedText = re.sub("'", '', cleanedText, flags=re.M)
 
-    # remove control characters
+    # Remove control characters
     cleanedText = re.sub("[:^~]", '', cleanedText, flags=re.M)
 
-    # remove multiple spaces
+    # Remove dashes
+    cleanedText = re.sub("-", ' ', cleanedText, flags=re.M)
+
+    # Remove multiple spaces
     cleanedText = re.sub("\s+", ' ', cleanedText, flags=re.M)
 
-    # remove period from beginning of string
+    # Remove period from beginning of string
     cleanedText = re.sub("^\.", '', cleanedText, flags=re.M)
 
-    # remove multiple periods
+    # Remove multiple periods
     cleanedText = re.sub("\.{2,}", '', cleanedText, flags=re.M)
 
-    # remove .lock from end of string
+    # Remove .lock from end of string
     cleanedText = re.sub("\.lock+$", '', cleanedText, flags=re.M)
 
-    # replacing spaces with hyphens
+    # Replacing spaces with hyphens
     cleanedText = cleanedText.split(' ')
     cleanedText = "-".join(cleanedText)
+
+    # Lowercase the name
+    cleanedText = cleanedText.lower()
 
     return cleanedText;
 
